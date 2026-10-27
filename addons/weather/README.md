@@ -32,6 +32,13 @@ Set in `app/src/main/res/values/options.xml` before building. With the defaults 
 
 ![A week, with humidity and wind](https://raw.githubusercontent.com/majnioui/cleanyourtv-contrib/pr-assets/addon-weather-week/weather-options.png)
 
+## The weather on Home
+
+The app also answers `content://io.github.sumyabazar1.weather.now` with one row: `temp_c`, `code` (WMO),
+`day`, `sky` and `updated_ms`. The launcher's `weather_now` key reads it, so Home can show the weather without
+network access of its own. The row holds no place name. A read whose reading is older than 30 minutes starts
+one fetch in the background and answers with the old row. Nothing is fetched while nobody reads it.
+
 ## Permissions
 
 | Permission | Why |
