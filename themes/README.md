@@ -29,6 +29,7 @@ refused (copy a theme first), and a `config.json` it cannot read is named before
 | `six-columns/` | Six smaller tiles per row and one grid row visible under the dock | <img src="six-columns/screenshot.jpg" width="320" alt="six-columns theme"> |
 | `retro/` | Pure black, a dock with no band or border, a rim-only focus highlight (`glass_style: rim`), no colour gradient, icon-only top buttons, and a wallpaper for morning, afternoon and night. The three pictures are the author's own; see `retro/CREDITS.md`. By [REGT-URRED](https://github.com/REGT-URRED) | <img src="retro/screenshot.jpg" width="320" alt="retro theme"> |
 | `sweden/` | Three photos of Sweden from Wikimedia Commons (the aurora over Abisko, Vasabron at dusk, Skeppsbron in the evening), a new one every hour with its place and photographer under the buttons; six small tiles in a frosted-glass dock, round icon-only buttons, no hero name. The photos are CC BY / CC BY-SA, not MIT: see `sweden/CREDITS.md` | <img src="sweden/screenshot.jpg" width="320" alt="sweden theme"> |
+| `macdock/` | A macOS-style Home (`mac_home`): one header line with small rings and the weather, a centred dock with Music and Apps buttons, a panel of every app, a now-playing bar and a music visualizer coloured from the wallpaper. The wallpaper is a public-domain photo of a red spider lily; see `macdock/CREDITS.md` | <img src="macdock/screenshot.jpg" width="320" alt="macdock theme"> |
 
 Every theme folder has a `screenshot.jpg` of Home with that theme on a real TV. `tools/theme.sh` never
 pushes it; it is only here so you can see a theme before you try it.
@@ -101,6 +102,13 @@ A new key needs one there in the same pull request.
 | `advanced_effects` | bool | Optional lifted tile, icon zoom, smooth ambient colour and app opening effects; false by default |
 | `show_home_settings_shortcut` | bool | Keep the optional Default-home tile visible when the TV has a home picker; false by default |
 | `show_stats` | bool | One line under the clock with CPU, free memory and free storage. Off unless set |
+| `stats_rings` | bool | With `show_stats`, rings instead of the text line: CPU (where the TV lets an app read it), memory used and storage used. With `mac_home` they sit small in the one-line header. Off by default |
+| `stats_ring_color` | `#RRGGBB` | The rings' colour; white by default. With `accent_from_wallpaper` the wallpaper's colour wins |
+| `weather_now` | bool | The weather now (icon, degrees, sky) beside the top buttons, read from the weather add-on on the TV (`addons/weather`), so the launcher itself stays offline; no line while the add-on is missing or has no city. Off by default |
+| `mac_home` | bool | A macOS-style Home: one header line (date and time, status, buttons), a centred dock of `dock_apps` with a divider, a Music button and an Apps button, Left and Right going round, and Down, Menu or Apps opening a panel of every TV app (Recent, then A to Z, with a Launcher tile for Launcher settings). Icons get one rounded-square shape. Replaces the dock row and the grid. Off by default |
+| `now_playing` | bool | With `mac_home`, a glass bar above the dock with what is playing and previous / play-pause / next; Back on it hides it until music starts again, and the dock's Music button hides it and the visualizer together. Needs notification access for the launcher (Launcher settings > Music). On by default |
+| `music_style` | `bars`, `waves` or `off` | With `mac_home`, the visualizer behind the dock while music plays. It follows the sound only with the Microphone permission (it reads the speaker output, never the microphone), and animates without it. `bars` by default |
+| `accent_from_wallpaper` | bool | The rings' and the visualizer's colour taken from the wallpaper's most vivid colour, so a new picture brings its own accent; a grey picture keeps `stats_ring_color`. Off by default |
 | `handle_view_inputs` | bool | Answer the system input switcher (`VIEW_INPUTS`, what the remote's Input button becomes) with the Inputs menu, for sets whose stock launcher was its only handler (Hisense huangshan); `false` by default so a TV with its own input picker never gets a chooser |
 | `background_color` | `#RRGGBB` | Colour behind everything; black by default |
 | `sky_intensity` | 0 to 100 | Time-of-day backdrop: a dark gradient that follows the clock, 0 hides it (default) |

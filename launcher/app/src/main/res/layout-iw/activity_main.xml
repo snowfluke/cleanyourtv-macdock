@@ -326,6 +326,37 @@
                 android:focusable="false"
                 android:visibility="gone" />
 
+            <!-- stats_rings: the same readings as rings, right-aligned under the weather line (or the top buttons
+                 while that line is gone). -->
+            <com.gathin.tvhome.StatsRings
+                android:id="@+id/statsRings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/weatherNow"
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="12dp"
+                android:layout_marginEnd="6dp"
+                android:focusable="false"
+                android:visibility="gone" />
+
+            <!-- weather_now: the weather add-on's reading, right-aligned under the top buttons. -->
+            <TextView
+                android:id="@+id/weatherNow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/topButtons"
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="14dp"
+                android:layout_marginEnd="6dp"
+                android:singleLine="true"
+                android:textColor="#FFFFFFFF"
+                android:textSize="22sp"
+                android:fontFamily="@string/font_light"
+                android:shadowColor="#66000000"
+                android:shadowRadius="6"
+                android:focusable="false"
+                android:visibility="gone" />
+
             <LinearLayout
                 android:id="@+id/topButtons"
                 android:layout_width="wrap_content"

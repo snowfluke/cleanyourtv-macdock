@@ -152,4 +152,26 @@
     <!-- Cinematic top shelf (cinematic_home): the line under the focused dock app's name; %1$s is when it was
          last opened, e.g. "5 minutes ago" or "yesterday, 9:40 pm". -->
     <string name="last_opened">Last opened %1$s</string>
+    <string name="music_label" translatable="false">Music</string>
+    <string name="now_playing_state" translatable="false">Now playing bar: %1$s</string>
+    <string name="music_style_state" translatable="false">Visualizer: %1$s</string>
+    <string name="music_style_bars" translatable="false">Bars</string>
+    <string name="music_style_waves" translatable="false">Waves</string>
+    <string name="accent_state" translatable="false">Colour from wallpaper: %1$s</string>
+    <string name="media_access_state" translatable="false">Show what is playing: %1$s</string>
+    <string name="mic_state" translatable="false">Visualizer hears the sound: %1$s</string>
+    <string name="allowed" translatable="false">Allowed</string>
+    <string name="not_allowed" translatable="false">Not allowed</string>
+    <string name="music_permissions_hint" translatable="false">The bar needs Notification access to read what is playing; it reads no notifications. The visualizer needs the Microphone permission to follow the sound; it only reads the speaker output, never the microphone, and without it the bars animate instead.</string>
+    <string name="mac_panel_title" translatable="false">Applications</string>
+    <string name="mac_panel_recent" translatable="false">Recent</string>
+    <string name="mac_panel_all" translatable="false">All apps</string>
+    <string name="mac_dock_apps" translatable="false">Apps</string>
+    <string name="mac_home_settings" translatable="false">Launcher</string>
+    <string name="mac_gear_hint" translatable="false">Settings · hold OK for more</string>
+    <string name="mac_dock_music_shown" translatable="false">Music: shown</string>
+    <string name="mac_dock_music_hidden" translatable="false">Music: hidden</string>
+    <string name="stats_ring_cpu" translatable="false">CPU</string>
+    <string name="stats_ring_memory" translatable="false">RAM</string>
+    <string name="stats_ring_storage" translatable="false">DISK</string>
 </resources>

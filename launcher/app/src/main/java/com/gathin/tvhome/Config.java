@@ -43,6 +43,7 @@ final class Config {
     static final String ROWS_BELOW_DOCK_KEY = "rows_below_dock";
     static final String WALLPAPER_CHOICE_KEY = "wallpaper_choice";
     static final String DOCK_OPACITY_KEY = "dock_opacity";
+    static final String NOW_PLAYING_KEY = "now_playing", MUSIC_STYLE_KEY = "music_style", ACCENT_KEY = "accent_from_wallpaper";
     /**
      * Counts the changes made in Launcher settings. Home remembers the count it was built with and rebuilds on
      * resume when it differs, however the settings were left (see MainActivity#onResume).
@@ -139,6 +140,19 @@ final class Config {
     final boolean showHomeSettingsShortcut;
     /** One line under the clock: CPU, free memory, free storage. Off unless config or a theme turns it on. */
     final boolean showStats;
+    /** With show_stats, rings instead of the text line (stats_rings), drawn in stats_ring_color. */
+    final boolean statsRings;
+    /** The weather add-on's reading under the top buttons (weather_now). */
+    final boolean weatherNow;
+    /** A macOS-style dock and an app panel instead of the dock row and the grid (mac_home). */
+    final boolean macHome;
+    /** mac_home music visualizer: "bars", "waves" or "off" (music_style). */
+    final String musicStyle;
+    /** mac_home: the now-playing bar above the dock (now_playing). */
+    final boolean nowPlaying;
+    /** The rings' and the visualizer's colour taken from the wallpaper instead of stats_ring_color. */
+    final boolean accentFromWallpaper;
+    final int statsRingColor;
     /** App library pill after the last Home row (config.xml app_library). */
     final boolean appLibrary;
     /** OK directly toggles Home membership in the library (app_library_selection). */
@@ -272,7 +286,7 @@ final class Config {
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, boolean fadeRows, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
-                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean inputsConnectedOnly) {
+                   Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways, boolean inputsConnectedOnly, boolean statsRings, int statsRingColor, boolean weatherNow, boolean macHome, String musicStyle, boolean nowPlaying, boolean accentFromWallpaper) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -368,6 +382,13 @@ final class Config {
         this.homeLongPressHome = homeLongPressHome;
         this.powerOnHomeAlways = powerOnHomeAlways;
         this.inputsConnectedOnly = inputsConnectedOnly;
+        this.statsRings = statsRings;
+        this.weatherNow = weatherNow;
+        this.macHome = macHome;
+        this.musicStyle = musicStyle;
+        this.nowPlaying = nowPlaying;
+        this.accentFromWallpaper = accentFromWallpaper;
+        this.statsRingColor = statsRingColor;
         this.wifiStatusWarnings = wifiStatusWarnings;
         this.topBarApps = Collections.unmodifiableList(topBarApps);
         this.showGreeting = showGreeting;
@@ -476,6 +497,13 @@ final class Config {
         boolean homeLongPressHome = res.getBoolean(R.bool.home_long_press_home);
         boolean powerOnHomeAlways = res.getBoolean(R.bool.power_on_home_always);
         boolean inputsConnectedOnly = res.getBoolean(R.bool.inputs_connected_only);
+        boolean statsRings = res.getBoolean(R.bool.stats_rings);
+        boolean weatherNow = res.getBoolean(R.bool.weather_now);
+        boolean macHome = res.getBoolean(R.bool.mac_home);
+        String musicStyle = res.getString(R.string.music_style);
+        boolean nowPlaying = res.getBoolean(R.bool.now_playing);
+        boolean accentFromWallpaper = res.getBoolean(R.bool.accent_from_wallpaper);
+        int statsRingColor = 0xFFFFFFFF;
         boolean dockGlass = res.getBoolean(R.bool.dock_glass);
         boolean dockEvenPadding = res.getBoolean(R.bool.dock_even_padding);
         boolean dockBand = res.getBoolean(R.bool.dock_band);
@@ -581,6 +609,13 @@ final class Config {
             homeLongPressHome = bool(json, "home_long_press_home", homeLongPressHome);
             powerOnHomeAlways = bool(json, "power_on_home_always", powerOnHomeAlways);
             inputsConnectedOnly = bool(json, "inputs_connected_only", inputsConnectedOnly);
+            statsRings = bool(json, "stats_rings", statsRings);
+            weatherNow = bool(json, "weather_now", weatherNow);
+            macHome = bool(json, "mac_home", macHome);
+            musicStyle = json.optString("music_style", musicStyle);
+            nowPlaying = bool(json, "now_playing", nowPlaying);
+            accentFromWallpaper = bool(json, "accent_from_wallpaper", accentFromWallpaper);
+            statsRingColor = color(json, "stats_ring_color", statsRingColor);
             dockGlass = bool(json, "dock_glass", dockGlass);
             dockEvenPadding = bool(json, "dock_even_padding", dockEvenPadding);
             dockBand = bool(json, "dock_band", dockBand);
@@ -619,6 +654,9 @@ final class Config {
         if (chosenRows >= 0 && chosenRows <= 3) rowsBelow = chosenRows;
         animations = choices.getBoolean("animations", animations);
         advancedEffects = choices.getBoolean("advanced_effects", advancedEffects);
+        nowPlaying = choices.getBoolean(NOW_PLAYING_KEY, nowPlaying);
+        musicStyle = choices.getString(MUSIC_STYLE_KEY, musicStyle);
+        accentFromWallpaper = choices.getBoolean(ACCENT_KEY, accentFromWallpaper);
         File wallpaper = dir != null ? new File(dir, WALLPAPER_NAME) : null;
         if (wallpaper != null && !(wallpaper.isFile() && wallpaper.length() > 0)) wallpaper = null;
         // A theme can also switch the wallpaper off while the file is still there.
@@ -665,7 +703,7 @@ final class Config {
                 dockBand, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough,
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                dateBelowClock, vpnPill, locale, powerOnHomeAlways, inputsConnectedOnly);
+                dateBelowClock, vpnPill, locale, powerOnHomeAlways, inputsConnectedOnly, statsRings, statsRingColor, weatherNow, macHome, musicStyle, nowPlaying, accentFromWallpaper);
     }
 
     /**
@@ -709,11 +747,12 @@ final class Config {
             SharedPreferences.Editor editor = choices.edit();
             if (!"absent".equals(token)) editor.remove("columns").remove("animations")
                     .remove("advanced_effects").remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY)
-                    .remove(DOCK_OPACITY_KEY);
+                    .remove(DOCK_OPACITY_KEY).remove(NOW_PLAYING_KEY).remove(MUSIC_STYLE_KEY).remove(ACCENT_KEY);
             editor.putString(THEME_SIGNATURE_KEY, signature).commit();
         } else if (!seen.equals(signature)) {
             choices.edit().remove("columns").remove("animations").remove("advanced_effects")
                     .remove(ROWS_BELOW_DOCK_KEY).remove(WALLPAPER_CHOICE_KEY).remove(DOCK_OPACITY_KEY)
+                    .remove(NOW_PLAYING_KEY).remove(MUSIC_STYLE_KEY).remove(ACCENT_KEY)
                     .putString(THEME_SIGNATURE_KEY, signature).commit();
         }
     }

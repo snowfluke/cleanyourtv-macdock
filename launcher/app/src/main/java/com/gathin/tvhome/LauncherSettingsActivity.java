@@ -140,7 +140,9 @@ public final class LauncherSettingsActivity extends Activity {
             if (!hasOnTvChoices()) return;
             choices.edit().remove("columns").remove(Config.ROWS_BELOW_DOCK_KEY).remove("animations")
                     .remove("advanced_effects").remove(Config.WALLPAPER_CHOICE_KEY)
-                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY).commit();
+                    .remove(Config.DOCK_OPACITY_KEY).remove(OpenOnStart.KEY)
+                    .remove(Config.NOW_PLAYING_KEY).remove(Config.MUSIC_STYLE_KEY).remove(Config.ACCENT_KEY).commit();
+            music = current();
             Config current = Config.load(this);
             columns = current.columns;
             rowsBelowDock = current.rowsBelowDock;
@@ -150,6 +152,7 @@ public final class LauncherSettingsActivity extends Activity {
             changed();
             refresh();
         });
+        if (config.macHome) setupMusic(config);
         findViewById(R.id.defaultHomeChoice).setOnClickListener(v -> {
             Toast.makeText(this, R.string.home_settings_help, Toast.LENGTH_LONG).show();
             open(new Intent(Settings.ACTION_HOME_SETTINGS));
@@ -299,13 +302,79 @@ public final class LauncherSettingsActivity extends Activity {
                         : getString(R.string.wallpaper_theme_default)));
         openOnStartChoice.setText(getString(R.string.open_on_start_state, openOnStartLabel()));
         followThemeChoice.setSelected(!hasOnTvChoices());
+        refreshMusic();
+    }
+
+    // ---- Music (mac_home): the now-playing bar, the visualizer and their two permissions -------------------------
+
+    private static final String[] STYLES = {"bars", "waves", "off"};
+    private Config music;
+    private TextView nowPlayingChoice, musicStyleChoice, accentChoice, mediaAccessChoice, micChoice;
+
+    private Config current() {
+        return Config.load(this);
+    }
+
+    private void setupMusic(Config config) {
+        music = config;
+        findViewById(R.id.musicSection).setVisibility(View.VISIBLE);
+        nowPlayingChoice = findViewById(R.id.nowPlayingChoice);
+        musicStyleChoice = findViewById(R.id.musicStyleChoice);
+        accentChoice = findViewById(R.id.accentChoice);
+        mediaAccessChoice = findViewById(R.id.mediaAccessChoice);
+        micChoice = findViewById(R.id.micChoice);
+        nowPlayingChoice.setOnClickListener(v -> {
+            choices.edit().putBoolean(Config.NOW_PLAYING_KEY, !music.nowPlaying).apply();
+            musicChanged();
+        });
+        musicStyleChoice.setOnClickListener(v -> {
+            int at = 0;
+            for (int i = 0; i < STYLES.length; i++) if (STYLES[i].equals(music.musicStyle)) at = i;
+            choices.edit().putString(Config.MUSIC_STYLE_KEY, STYLES[(at + 1) % STYLES.length]).apply();
+            musicChanged();
+        });
+        accentChoice.setOnClickListener(v -> {
+            choices.edit().putBoolean(Config.ACCENT_KEY, !music.accentFromWallpaper).apply();
+            musicChanged();
+        });
+        // The TV's own screens: Settings > Privacy > Notification access, and the launcher's App info > Permissions.
+        mediaAccessChoice.setOnClickListener(v -> open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)));
+        micChoice.setOnClickListener(v -> open(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.fromParts("package", getPackageName(), null))));
+    }
+
+    private void musicChanged() {
+        music = current();
+        changed();
+        refresh();
+    }
+
+    private void refreshMusic() {
+        if (music == null || nowPlayingChoice == null) return;
+        nowPlayingChoice.setText(getString(R.string.now_playing_state, getString(music.nowPlaying ? R.string.on : R.string.off)));
+        String style = "waves".equals(music.musicStyle) ? getString(R.string.music_style_waves)
+                : "off".equals(music.musicStyle) ? getString(R.string.off) : getString(R.string.music_style_bars);
+        musicStyleChoice.setText(getString(R.string.music_style_state, style));
+        accentChoice.setText(getString(R.string.accent_state, getString(music.accentFromWallpaper ? R.string.on : R.string.off)));
+        boolean media = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(this)
+                .contains(getPackageName());
+        mediaAccessChoice.setText(getString(R.string.media_access_state, getString(media ? R.string.allowed : R.string.not_allowed)));
+        boolean mic = checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        micChoice.setText(getString(R.string.mic_state, getString(mic ? R.string.allowed : R.string.not_allowed)));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshMusic();   // back from the TV's permission screens
     }
 
     private boolean hasOnTvChoices() {
         return choices.contains("columns") || choices.contains(Config.ROWS_BELOW_DOCK_KEY)
                 || choices.contains("animations") || choices.contains("advanced_effects")
                 || choices.contains(Config.WALLPAPER_CHOICE_KEY) || choices.contains(Config.DOCK_OPACITY_KEY)
-                || choices.contains(OpenOnStart.KEY);
+                || choices.contains(OpenOnStart.KEY) || choices.contains(Config.NOW_PLAYING_KEY)
+                || choices.contains(Config.MUSIC_STYLE_KEY) || choices.contains(Config.ACCENT_KEY);
     }
 
     private void open(Intent intent) {

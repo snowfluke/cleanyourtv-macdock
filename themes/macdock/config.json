@@ -1,0 +1,27 @@
+{
+  "background_color": "#2A2725",
+  "wallpaper": true,
+  "wallpaper_dim": 20,
+  "dock_glass": true,
+  "glass_style": "rim",
+  "ambient_glow": false,
+  "show_stats": true,
+  "date_below_clock": false,
+  "clock_wallpaper": true,
+  "clock_wallpaper_dim": 50,
+  "stats_rings": true,
+  "stats_ring_color": "#E8573F",
+  "cinematic_home": false,
+  "weather_now": true,
+  "dock_title": false,
+  "icon_only_buttons": true,
+  "icon_only_inputs": true,
+  "show_greeting": false,
+  "mac_home": true,
+  "app_keys": [
+    "KEYCODE_INFO:clock"
+  ],
+  "music_style": "bars",
+  "accent_from_wallpaper": true,
+  "now_playing": true
+}

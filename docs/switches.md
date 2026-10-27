@@ -56,3 +56,10 @@ fits the rules; keys from before the rule sit on its wanted list until a screens
 | `power_on_home_always` | <img src="switches/power_on_home_always.jpg" width="320" alt="power_on_home_always on a TV"> |
 | `inputs_connected_only` | <img src="switches/inputs_connected_only.jpg" width="320" alt="inputs_connected_only on a TV"> |
 | `icon_tiles` | <img src="switches/icon_tiles.jpg" width="320" alt="icon_tiles: an app drawn from its icon in the grid on a TV"> |
+| `mac_home` | <img src="../themes/macdock/screenshot.jpg" width="320" alt="mac_home on a TV"> |
+| `stats_rings` | <img src="../themes/macdock/screenshot.jpg" width="320" alt="stats_rings on a TV"> |
+| `stats_ring_color` | <img src="../themes/macdock/screenshot.jpg" width="320" alt="stats_ring_color on a TV"> |
+| `weather_now` | <img src="../themes/macdock/screenshot.jpg" width="320" alt="weather_now on a TV"> |
+| `accent_from_wallpaper` | <img src="../themes/macdock/screenshot.jpg" width="320" alt="accent_from_wallpaper on a TV"> |
+| `now_playing` | <img src="switches/now_playing.jpg" width="320" alt="now_playing on a TV"> |
+| `music_style` | <img src="switches/now_playing.jpg" width="320" alt="music_style on a TV"> |

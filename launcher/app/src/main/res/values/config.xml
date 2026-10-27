@@ -411,6 +411,25 @@
     <!-- One line under the clock: CPU, free memory and free storage. Off by default; a theme can set
          "show_stats": true. Nothing is read, and the clock does not move, while this is false. -->
     <bool name="show_stats">false</bool>
+    <!-- With show_stats: small rings (CPU when readable, memory used, storage used) instead of the text line.
+         A theme sets "stats_rings": true and "stats_ring_color": "#RRGGBB" (white by default). -->
+    <bool name="stats_rings">false</bool>
+    <!-- The weather now (icon, degrees, sky) under the top buttons, read from the weather add-on
+         (io.github.sumyabazar1.weather) on this TV; the launcher itself stays offline. A theme sets "weather_now": true. -->
+    <bool name="weather_now">false</bool>
+    <!-- A macOS-style dock (dock_apps, a divider and an Apps button) centred at the bottom, and Down or Menu for
+         a panel of every TV app, instead of the dock row and the grid. A theme sets "mac_home": true. -->
+    <bool name="mac_home">false</bool>
+    <!-- mac_home music visualizer: "bars" or "waves" (three flowing lines). A theme sets "music_style". -->
+    <string name="music_style" translatable="false">bars</string>
+    <!-- mac_home: the now-playing bar above the dock. It also needs notification access, granted by hand:
+         adb shell cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.MediaListener
+         The visualizer follows the sound only with: adb shell pm grant com.gathin.tvhome android.permission.RECORD_AUDIO
+         (without it, it animates). A theme sets "now_playing" and "music_style" ("bars", "waves" or "off"). -->
+    <bool name="now_playing">true</bool>
+    <!-- The rings' and the visualizer's colour from the wallpaper's most vivid colour; a theme sets
+         "accent_from_wallpaper": true. -->
+    <bool name="accent_from_wallpaper">false</bool>
 
     <!-- Time-of-day backdrop behind everything: a dark gradient that follows the clock, with a warm
          horizon glow around sunrise and sunset. 0 keeps the plain background (the default); 1 to 100

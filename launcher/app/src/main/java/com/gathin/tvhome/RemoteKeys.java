@@ -292,7 +292,7 @@ final class RemoteKeys {
     static boolean isAction(String target) {
         switch (target) {
             case "back": case "home": case "recents": case "mute": case "sleep":
-            case "screensaver": case "settings": case "wifi":
+            case "screensaver": case "settings": case "wifi": case "clock":
                 return true;
             default:
                 return false;
@@ -327,6 +327,10 @@ final class RemoteKeys {
                 break;
             case "wifi":
                 start(ctx, SystemSettings.intent(ctx, Settings.ACTION_WIFI_SETTINGS));
+                break;
+            case "clock":
+                // The time over whatever is on screen, for a few seconds; only a key helper can draw it.
+                if (ctx instanceof AccessibilityService) TimePill.show((AccessibilityService) ctx);
                 break;
             default:
                 break;   // "sleep" below Android 9: consumed, nothing to do

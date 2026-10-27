@@ -117,6 +117,56 @@
             android:layout_marginTop="28dp"
             android:visibility="gone" />
 
+        <!-- mac_home only: the music bar and visualizer, and the two permissions they need. -->
+        <LinearLayout
+            android:id="@+id/musicSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="@string/music_label"
+                android:textColor="#FFFFFFFF"
+                android:textSize="20sp" />
+
+            <TextView
+                android:id="@+id/nowPlayingChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/musicStyleChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/accentChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/mediaAccessChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/micChoice"
+                style="@style/SettingsRow"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:text="@string/music_permissions_hint"
+                android:textColor="#FFACB8C1"
+                android:textSize="14sp" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/followThemeChoice"
             style="@style/SettingsRow"

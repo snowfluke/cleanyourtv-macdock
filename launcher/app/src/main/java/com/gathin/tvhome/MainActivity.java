@@ -190,6 +190,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean lunar;
     private int lunarOffset;
     private TextView stats;
+    private StatsRings statsRings;
+    private TextView weatherNow;
+    private boolean macHome;
+    private MacDock macDock;
+    private SpotlightPanel spotlight;
+    private List<String> macDockApps;
+    private List<String> macHidden;
+    /** The top button the owner opened something from, so Back returns to it rather than to the dock. */
+    private View macLastButton;
+    private NowPlaying nowPlaying;
+    private MusicBars musicBars;
+    private int macAccent;
+    private boolean macOnScreen;
+    private boolean macWaves, macBarsOff, macNowPlaying, macAutoAccent;
+    /** The dock's Music toggle: the player and the visualizer shown or hidden, kept across restarts. */
+    private boolean macMusicShown = true;
+    private boolean weatherOn;
+    private int weatherMinutes;
+    private final java.util.concurrent.ExecutorService weatherIo = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private boolean statsRingsOn;
     private List<RaceWeekend.Race> raceCalendar;
     private View racePanel;
     private TextView raceKicker, raceHeadline, raceSessions;
@@ -379,6 +399,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (festive) updateWifiLabel();
             sky.update();
             wallpaperPlayer.update();
+            if (weatherOn && ++weatherMinutes % 5 == 0) readWeather();
             handler.postDelayed(this, MINUTE_MS);
         }
     };
@@ -491,12 +512,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
         stats = findViewById(R.id.stats);
+        statsRings = findViewById(R.id.statsRings);
+        weatherNow = findViewById(R.id.weatherNow);
         raceCalendar = cfg.raceCalendar;
         racePanel = findViewById(R.id.racePanel);
         raceKicker = findViewById(R.id.raceKicker);
         raceHeadline = findViewById(R.id.raceHeadline);
         raceSessions = findViewById(R.id.raceSessions);
         showStats = cfg.showStats;
+        statsRingsOn = cfg.statsRings;
+        weatherOn = cfg.weatherNow;
+        macHome = cfg.macHome;
+        macDockApps = cfg.dockApps;
+        macHidden = cfg.hiddenApps;
+        macAccent = cfg.statsRingColor;
+        macWaves = "waves".equals(cfg.musicStyle);
+        macBarsOff = "off".equals(cfg.musicStyle);
+        macNowPlaying = cfg.nowPlaying;
+        macAutoAccent = cfg.accentFromWallpaper;
+        macMusicShown = getSharedPreferences("mac_home", MODE_PRIVATE).getBoolean("music_shown", true);
+        statsRings.setColor(cfg.statsRingColor);
         inputsConnectedOnly = cfg.inputsConnectedOnly;
         shamsi = cfg.shamsiDate;
         lunarDate = findViewById(R.id.lunarDate);
@@ -785,6 +820,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (macHome && macDock != null) {
+                    if (nowPlaying.getVisibility() != View.VISIBLE || !nowPlaying.requestFocus()) macDock.requestFocus();
+                    return true;
+                }
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
@@ -914,6 +953,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (openLauncherSettingsIfAsked(intent)) return;
         if (openInputsIfAsked(intent)) return;
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
+        if (macHome && macDock != null) {
+            spotlight.hide();
+            macLastButton = null;   // Home itself starts at the dock
+            macDock.requestFocus();
+            return;
+        }
         grid.scrollToPosition(0);
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
@@ -986,6 +1031,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             pillsShown = true;
         }
         if (showStats) startStats();
+        if (weatherOn) readWeather();
+        if (macHome) {
+            if (macDock == null) setupMacHome();
+            macOnScreen = true;
+            if (macNowPlaying && macMusicShown) nowPlaying.start();
+            if (!spotlight.isShowing()) macDock.post(this::macFocusHome);
+        }
         sky.update();
         wallpaperPlayer.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
@@ -1126,6 +1178,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
      * reload() the view that holds focus may no longer show the app it had.
      */
     private void restoreFocus() {
+        if (macHome && macDock != null) {
+            if (!spotlight.isShowing()) macFocusHome();
+            return;
+        }
         final boolean returnToLibrary = libraryFocusPending;
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
@@ -1154,6 +1210,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
+        macOnScreen = false;
+        if (nowPlaying != null) {
+            nowPlaying.stop();
+            musicBars.setPlaying(false);
+        }
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
@@ -1218,6 +1279,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         super.onDestroy();
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
+        weatherIo.shutdownNow();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         if (tim != null) tim.unregisterCallback(inputCallback);
@@ -1262,6 +1324,34 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // Vendor keys (TCL Netflix button, 4062) never reach the key services, only the focused window.
         if (event.getKeyCode() >= 1000 && RemoteKeys.handle(this, event, homeAppKeys.get(event.getKeyCode()), null)) return true;
         if (handleSettingsKey(event)) return true;
+        if (macHome && spotlight != null) {
+            int code = event.getKeyCode();
+            boolean up = event.getAction() == KeyEvent.ACTION_UP;
+            if (spotlight.isShowing()) {
+                if (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_MENU) {
+                    if (up) spotlight.hide();
+                    return true;
+                }
+                View f = getCurrentFocus();
+                boolean inPanel = false;
+                for (View v = f; v != null; v = v.getParent() instanceof View ? (View) v.getParent() : null) {
+                    if (v == spotlight) {
+                        inPanel = true;
+                        break;
+                    }
+                }
+                boolean arrow = code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
+                        || code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT
+                        || code == KeyEvent.KEYCODE_DPAD_CENTER;
+                if (arrow && !inPanel) {
+                    if (!up) spotlight.recoverFocus();
+                    return true;
+                }
+            } else if (code == KeyEvent.KEYCODE_MENU) {
+                if (up) showMacPanel();
+                return true;
+            }
+        }
         if (tileMenuEnabled && !reordering && openPopup == null && cardPrompt == null
                 && event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
             int position = focusedTilePosition();
@@ -2062,7 +2152,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void startStats() {
         if (statsThread != null) return;
-        stats.setVisibility(View.VISIBLE);
+        (statsRingsOn ? statsRings : stats).setVisibility(View.VISIBLE);
         cpuTotalPrev = -1;
         idlePrev = -1;
         procStatDead = false;
@@ -2076,9 +2166,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             @Override
             public void run() {
                 if (statsBg != bg) return;
-                String line = readStatsLine();
+                float[] ring = statsRingsOn ? readStatsRings() : null;
+                String line = ring == null ? readStatsLine() : null;
                 handler.post(() -> {
-                    if (showStats && stats != null && statsBg == bg) stats.setText(line);
+                    if (!showStats || statsBg != bg) return;
+                    if (ring != null) statsRings.set(ring, ringLabels());
+                    else if (stats != null) stats.setText(line);
                 });
                 if (statsBg == bg) bg.postDelayed(this, STATS_MS);
             }
@@ -2093,13 +2186,330 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         statsBg = null;
         // Paused (the quick panel or an app on top): keep the last line on screen. Taking it away moved the grid up
         // under a glass highlight that stayed put.
-        if (!showStats) stats.setVisibility(View.GONE);
+        if (!showStats) {
+            stats.setVisibility(View.GONE);
+            statsRings.setVisibility(View.GONE);
+        }
     }
 
     /** One quiet line, e.g. "CPU 8%  ·  Memory 430 MB free  ·  Storage 3.1 GB free". Runs off the main thread. */
     private static void appendStat(StringBuilder line, String part) {
         if (line.length() > 0) line.append("  ·  ");
         line.append(part);
+    }
+
+    // ---- mac_home: a macOS-style dock and an app panel in place of the dock row and the grid ------------------
+
+    private void setupMacHome() {
+        grid.setVisibility(View.GONE);
+        if (glass != null) glass.setVisibility(View.GONE);
+        FrameLayout root = findViewById(R.id.root);
+        float density = getResources().getDisplayMetrics().density;
+        macDock = new MacDock(this);
+        FrameLayout.LayoutParams dockParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+        dockParams.bottomMargin = Math.round(22 * density);
+        root.addView(macDock, dockParams);
+        // Music: bars behind the dock, the now-playing bar just above it (both hidden until something plays).
+        musicBars = new MusicBars(this);
+        musicBars.setColor(macAccent);
+        musicBars.setWaves(macWaves);
+        root.addView(musicBars, root.indexOfChild(macDock), new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                Math.round(getResources().getDisplayMetrics().heightPixels * 0.45f), Gravity.BOTTOM));
+        nowPlaying = new NowPlaying(this);
+        FrameLayout.LayoutParams barParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        barParams.bottomMargin = Math.round((22 + 144 + 6) * density);   // above the dock and the room for its names
+        root.addView(nowPlaying, barParams);
+        nowPlaying.setListener((visible, playing) -> musicBars.setPlaying(playing && macOnScreen && !macBarsOff && macMusicShown));
+        spotlight = new SpotlightPanel(this);
+        root.addView(spotlight, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        macDock.setListener(new MacDock.Listener() {
+            @Override
+            public void onOpen(String pkg) {
+                openMacApp(pkg);
+            }
+
+            @Override
+            public void onPanel() {
+                showMacPanel();
+            }
+
+            @Override
+            public void onMusic() {
+                toggleMusic();
+            }
+        });
+        spotlight.setListener(new SpotlightPanel.Listener() {
+            @Override
+            public void onOpen(String pkg) {
+                spotlight.hide();
+                if (SpotlightPanel.HOME_SETTINGS.equals(pkg)) {
+                    startActivityForResult(new Intent(MainActivity.this, LauncherSettingsActivity.class), LAUNCHER_SETTINGS_REQUEST);
+                } else {
+                    openMacApp(pkg);
+                }
+            }
+
+            @Override
+            public void onClosed() {
+                macDock.setFocusable(true);
+                nowPlaying.setFocusable(true);
+                ((ViewGroup) findViewById(R.id.topButtons)).setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+                macDock.requestFocus();
+            }
+        });
+        macHeader(density);
+        macTooltips(root, density);
+        loadMacDock();
+        if (macAutoAccent) {
+            weatherIo.execute(() -> {
+                int accent = WallpaperAccent.from(new File(Config.dir(this), "wallpaper.jpg"), macAccent);
+                handler.post(() -> {
+                    macAccent = accent;
+                    statsRings.setColor(accent);
+                    musicBars.setColor(accent);
+                });
+            });
+        }
+    }
+
+    /** Icon-only top buttons say what they are: a small name pill under the focused one, as the dock does. */
+    private void macTooltips(FrameLayout root, float density) {
+        TextView tip = new TextView(this);
+        tip.setTextColor(0xFFFFFFFF);
+        tip.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14);
+        tip.setTypeface(UiFont.get(this, R.string.font_medium));
+        int h = Math.round(12 * density), v = Math.round(5 * density);
+        tip.setPadding(h, v, h, v);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xCC1E1C1B);
+        bg.setCornerRadius(100 * density);
+        tip.setBackground(bg);
+        tip.setVisibility(View.GONE);
+        root.addView(tip, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        ViewGroup buttons = findViewById(R.id.topButtons);
+        Runnable fade = () -> tip.animate().alpha(0f).setDuration(220)
+                .withEndAction(() -> tip.setVisibility(View.GONE)).start();
+        root.getViewTreeObserver().addOnGlobalFocusChangeListener((oldFocus, newFocus) -> {
+            if (newFocus != null && newFocus.getParent() == buttons) macLastButton = newFocus;
+            else if (newFocus == macDock) macLastButton = null;
+            tip.removeCallbacks(fade);
+            tip.animate().cancel();
+            if (newFocus == null || newFocus.getParent() != buttons) {
+                tip.setVisibility(View.GONE);
+                return;
+            }
+            CharSequence name = newFocus.getId() == R.id.btnSettings ? getString(R.string.mac_gear_hint)
+                    : newFocus.getContentDescription();
+            if (TextUtils.isEmpty(name) && newFocus instanceof TextView) name = ((TextView) newFocus).getText();
+            if (TextUtils.isEmpty(name)) {
+                tip.setVisibility(View.GONE);
+                return;
+            }
+            // Measured and placed before it is shown, in the same frame: placing it after the next layout showed it
+            // for a frame at the previous button's spot, a flicker when moving fast between buttons.
+            tip.setText(name);
+            int unspecified = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
+            tip.measure(unspecified, unspecified);
+            int[] at = new int[2], base = new int[2];
+            newFocus.getLocationInWindow(at);
+            root.getLocationInWindow(base);
+            float x = at[0] - base[0] + newFocus.getWidth() / 2f - tip.getMeasuredWidth() / 2f;
+            x = Math.min(x, root.getWidth() - tip.getMeasuredWidth() - 16 * density);
+            tip.setTranslationX(x);
+            tip.setTranslationY(at[1] - base[1] + newFocus.getHeight() + 10 * density);
+            tip.setAlpha(1f);
+            tip.setVisibility(View.VISIBLE);
+            tip.postDelayed(fade, MacDock.NAME_MS);
+        });
+    }
+
+    /**
+     * One line across the top, like a menu bar: the day, date and time on the left; the weather, compact rings and
+     * the three round buttons on the right. The big clock block is hidden; the buttons stay where they are.
+     */
+    private void macHeader(float density) {
+        View left = findViewById(R.id.leftBlock);
+        left.setVisibility(View.GONE);
+        View buttons = findViewById(R.id.topButtons);
+        ViewGroup header = (ViewGroup) buttons.getParent();
+        android.widget.TextClock time = new android.widget.TextClock(this);
+        time.setFormat12Hour("EEE d MMM   h:mm a");
+        time.setFormat24Hour("EEE d MMM   HH:mm");
+        time.setTextColor(0xFFFFFFFF);
+        time.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 20);
+        time.setTypeface(UiFont.get(this, R.string.font_medium));
+        time.setShadowLayer(6, 0, 0, 0x66000000);
+        time.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.RelativeLayout.LayoutParams tp = new android.widget.RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        tp.addRule(android.widget.RelativeLayout.ALIGN_PARENT_START);
+        tp.addRule(android.widget.RelativeLayout.ALIGN_TOP, R.id.topButtons);
+        tp.addRule(android.widget.RelativeLayout.ALIGN_BOTTOM, R.id.topButtons);
+        header.addView(time, tp);
+        // The status group (rings, weather) sits centred on the screen, over the centred dock; the date and the
+        // buttons take the two edges, with the same margin.
+        android.widget.LinearLayout status = new android.widget.LinearLayout(this);
+        status.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        status.setGravity(Gravity.CENTER_VERTICAL);
+        header.removeView(statsRings);
+        header.removeView(weatherNow);
+        android.widget.LinearLayout.LayoutParams ringsParams = new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        ringsParams.setMarginEnd(Math.round(22 * density));
+        status.addView(statsRings, ringsParams);
+        status.addView(weatherNow, new android.widget.LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        weatherNow.setGravity(Gravity.CENTER_VERTICAL);
+        weatherNow.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18);
+        android.widget.RelativeLayout.LayoutParams sp = new android.widget.RelativeLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        sp.addRule(android.widget.RelativeLayout.CENTER_HORIZONTAL);
+        sp.addRule(android.widget.RelativeLayout.ALIGN_TOP, R.id.topButtons);
+        sp.addRule(android.widget.RelativeLayout.ALIGN_BOTTOM, R.id.topButtons);
+        header.addView(status, sp);
+        statsRings.setCompact(true);
+    }
+
+    /** The dock's Music button: show or hide the player and the visualizer together. */
+    private void toggleMusic() {
+        macMusicShown = !macMusicShown;
+        getSharedPreferences("mac_home", MODE_PRIVATE).edit().putBoolean("music_shown", macMusicShown).apply();
+        if (macMusicShown) {
+            if (macNowPlaying) nowPlaying.start();
+        } else {
+            nowPlaying.stop();
+            nowPlaying.setVisibility(View.GONE);
+            musicBars.setPlaying(false);
+        }
+        macDock.setMusic(macMusicShown, getString(macMusicShown ? R.string.mac_dock_music_shown : R.string.mac_dock_music_hidden));
+    }
+
+    /** Where focus goes when Home comes back: the top button last used, or the dock. */
+    private void macFocusHome() {
+        View button = macLastButton;
+        if (button != null && button.isShown() && button.requestFocus()) return;
+        macDock.requestFocus();
+    }
+
+    /** The panel takes the keys while it is up: the dock and the top buttons behind it cannot be focused. */
+    private void showMacPanel() {
+        macDock.setFocusable(false);
+        nowPlaying.setFocusable(false);
+        ((ViewGroup) findViewById(R.id.topButtons)).setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        spotlight.show(macHidden);
+    }
+
+    private void loadMacDock() {
+        List<String> pkgs = macDockApps;
+        weatherIo.execute(() -> {
+            PackageManager pm = getPackageManager();
+            List<MacDock.Item> items = new ArrayList<>();
+            for (String pkg : pkgs) {
+                try {
+                    android.content.pm.ApplicationInfo info = pm.getApplicationInfo(pkg, 0);
+                    if (!info.enabled) continue;
+                    items.add(new MacDock.Item(pkg, String.valueOf(pm.getApplicationLabel(info)),
+                            IconNormalizer.of(this, pkg, pm.getApplicationIcon(info), Math.round(76 * getResources().getDisplayMetrics().density))));
+                } catch (PackageManager.NameNotFoundException ignored) {
+                    // Not installed: left out, as dock_apps does.
+                }
+            }
+            float density = getResources().getDisplayMetrics().density;
+            GradientDrawable tile = new GradientDrawable();
+            tile.setColor(0x40FFFFFF);
+            tile.setCornerRadius(16 * density);
+            android.graphics.drawable.LayerDrawable apps = new android.graphics.drawable.LayerDrawable(
+                    new android.graphics.drawable.Drawable[]{tile, getDrawable(R.drawable.ic_apps)});
+            int inset = Math.round(16 * density);
+            apps.setLayerInset(1, inset, inset, inset, inset);
+            if (macNowPlaying) {
+                GradientDrawable musicTile = new GradientDrawable();
+                musicTile.setColor(0x40FFFFFF);
+                musicTile.setCornerRadius(16 * density);
+                android.graphics.drawable.LayerDrawable music = new android.graphics.drawable.LayerDrawable(
+                        new android.graphics.drawable.Drawable[]{musicTile, getDrawable(R.drawable.ic_music_note)});
+                music.setLayerInset(1, inset, inset, inset, inset);
+                items.add(new MacDock.Item(MacDock.Item.MUSIC, null, "", music));
+            }
+            items.add(new MacDock.Item(null, getString(R.string.mac_dock_apps), apps));
+            handler.post(() -> {
+                if (macDock == null) return;
+                macDock.setItems(items);
+                macDock.setMusic(macMusicShown, getString(macMusicShown ? R.string.mac_dock_music_shown : R.string.mac_dock_music_hidden));
+            });
+        });
+    }
+
+    private void openMacApp(String pkg) {
+        PackageManager pm = getPackageManager();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
+        if (i == null) i = pm.getLaunchIntentForPackage(pkg);
+        try {
+            if (i == null) throw new android.content.ActivityNotFoundException(pkg);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+            startActivity(i);
+            LastOpened.record(this, pkg);
+        } catch (RuntimeException e) {
+            Toast.makeText(this, getString(R.string.cant_open, pkg), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ---- optional weather line (weather_now): the weather add-on's provider, read every 5 minutes on Home ----
+
+    private void readWeather() {
+        weatherIo.execute(() -> {
+            String line = null;
+            try (android.database.Cursor c = getContentResolver().query(
+                    android.net.Uri.parse("content://io.github.sumyabazar1.weather.now"), null, null, null, null)) {
+                if (c != null && c.moveToFirst()) {
+                    int code = c.getInt(c.getColumnIndexOrThrow("code"));
+                    boolean day = c.getInt(c.getColumnIndexOrThrow("day")) == 1;
+                    long degrees = Math.round(c.getDouble(c.getColumnIndexOrThrow("temp_c")));
+                    line = WeatherIcon.of(code, day) + "  " + degrees + "°  " + c.getString(c.getColumnIndexOrThrow("sky"));
+                }
+            } catch (RuntimeException ignored) {
+                // Add-on missing or not answering: no line.
+            }
+            String shown = line;
+            handler.post(() -> {
+                if (weatherNow == null) return;
+                if (shown == null) {
+                    weatherNow.setVisibility(View.GONE);
+                } else {
+                    weatherNow.setText(shown);
+                    weatherNow.setVisibility(View.VISIBLE);
+                }
+            });
+        });
+    }
+
+    private String[] ringLabels() {
+        return new String[]{getString(R.string.stats_ring_cpu), getString(R.string.stats_ring_memory),
+                getString(R.string.stats_ring_storage)};
+    }
+
+    /** CPU busy, memory used and storage used as 0..1; -1 for a reading this TV does not give. Off the main thread. */
+    private float[] readStatsRings() {
+        int cpu = cpuPercent();
+        if (cpu == -1) {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+            cpu = cpuPercent();
+        }
+        long[] mem = memUsedOfTotalMb();
+        java.io.File data = Environment.getDataDirectory();
+        long total = data.getTotalSpace(), free = data.getFreeSpace();
+        return new float[]{
+                cpu >= 0 ? cpu / 100f : -1f,
+                mem != null ? (float) mem[0] / mem[1] : -1f,
+                total > 0 ? 1f - (float) free / total : -1f};
     }
 
     private String readStatsLine() {
@@ -2427,6 +2837,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void focusTile(int position) {
+        if (macHome && macDock != null) {
+            if (!spotlight.isShowing()) macFocusHome();
+            return;
+        }
         libraryFocusPending = false;
         cancelPendingFocusScroll();
         if (adapter.appCount() == 0) {
@@ -2475,7 +2889,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private void updateClockVisibility() {
         boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
-        clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
+        clockBlock.setVisibility(macHome ? View.GONE : valid ? View.VISIBLE : View.INVISIBLE);   // mac_home: the one-line header shows the time
         handler.removeCallbacks(clockCheck);
         if (valid) {
             updateGreeting();
