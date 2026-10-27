@@ -1,3 +1,5 @@
+> **This is CleanYourTV macdock**, a fork that adds a macOS-style Home. Read [MACDOCK.md](MACDOCK.md) for what it adds and how to set it up. Everything below is the upstream README.
+
 <p align="center">
   <a href="https://cleanyour.tv"><img src="https://raw.githubusercontent.com/Gathin23/cleanyourtv/main/docs/banner.png" alt="CleanYourTV. Your TV, minus the ads. Strip the bloatware from any Android TV or Google TV over Wi-Fi and replace the ad-filled home screen with a clean launcher that looks like an Apple TV. No root, no cable, nothing uninstalled, and a one-line restore." width="800"></a>
 </p>
@@ -665,12 +667,12 @@ and a wallpaper.
     transitions; they may use more memory) once animations are on.
   - **Open on start**, only with `open_on_start_choice`: Off, or an app that opens instead of Home the first
     time Home comes up after the TV starts. Once per boot, so Home and Back still reach the launcher.
-  - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
-    clears them too.
   - **Music**, only with `mac_home`: **Now playing bar** on or off, **Visualizer** Bars, Waves or Off,
     **Colour from wallpaper** on or off, and two permission rows that open the TV's own screens: **Show what
     is playing** (notification access, which the bar needs to read what is playing) and **Visualizer hears
     the sound** (the Microphone permission, which only reads the speaker output).
+  - **Follow theme (reset on-TV choices)**, which clears every choice above. Pushing or resetting a theme
+    clears them too.
   - **Choose default home** opens Android's home picker, and **TV system settings** the TV's own settings
     page.
 - **Change the default home:** Launcher settings and the optional Default-home tile
