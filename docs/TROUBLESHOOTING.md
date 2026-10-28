@@ -84,9 +84,12 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   `TVOS-04.16.031.01.12`): the firmware starts `adbd` on its own port, 5877 there (`service.adb.tcp.port`),
   and the TV never shows it. Scan the TV's TCP ports (`nmap -p- <tv ip>`, or a short Python loop over
   `socket.connect_ex`; skip `nc` on macOS) and try each open port with `TV_HOST=<tv ip> TV_PORT=<port>
-  tools/tv.py --probe`: the ADB one answers, the others time out. Every script here honours `TV_PORT`, and
+  tools/tv.py --probe`: the ADB one answers, the others time out. A sandboxed shell can make `nmap`'s own
+  ping-discovery probe fail outright ("Network is down", SO_ERROR 50) before it scans anything;
+  `nmap -sT -Pn` (a plain TCP connect scan, no ping, no raw sockets) or the Python loop above still
+  works there. Every script here honours `TV_PORT`, and
   the closing check is `tools/adb-closed.py <tv ip> <port>`.
-- **Close port 5555 when you're done**: plaintext, and a shell for anyone on the LAN when `ro.adb.secure=0`. Steps in the README FAQ.
+- **Close port 5555 when you're done**: plaintext, and a shell for anyone on the LAN when `ro.adb.secure=0`, or when it is unset on a debug build or Android 4.4 (`tools/disable.sh` warns about both). Steps in the README FAQ.
 - **The TV sits on a separate VLAN or IoT network** and `tools/tv.py` times out although debugging
   is on: the router keeps the computer from reaching it. Add a temporary firewall rule from your
   computer to the TV on tcp/5555 only, and remove it again when you close ADB. Opening the whole
@@ -247,6 +250,26 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   device-owner app that hid it, or leave it, as the
   [Chromecast with Google TV 4K list](../examples/google-chromecast-gtv-4k/debloat.txt) does with
   `cast2class` (`hidden=true` and `enabled=2` there).
+- **A second Google TV profile keeps the listed packages enabled for itself.** The lists,
+  `tools/disable.sh`, `tools/restore.sh` and `tools/check.py` act on user 0, the TV's main profile. A
+  profile added on Google TV is a user of its own (type `com.android.tv.profile` in `dumpsys user`), with
+  its own enabled state for every package, so the list never reaches it. On a Chromecast with Google TV
+  4K (`sabrina`, Google TV 14, `UTTC.250917.004`) with one such profile, six packages the list had
+  disabled for user 0 were still enabled for that profile, user 10: `com.google.android.videos`,
+  `com.android.tv.feedbackconsent`, `com.google.android.adservices.api`,
+  `com.google.android.ext.adservices.api`, `com.google.android.federatedcompute` and
+  `com.google.android.ondevicepersonalization.services`. They run only while that profile is in use; it
+  had not been since setup. See which profiles there are, and what each still has on:
+  ```sh
+  tools/tv.py 'pm list users'                    # UserInfo{10:...} after user 0 is a second profile
+  tools/tv.py 'pm list packages -e --user 10'    # what that profile has enabled
+  ```
+  To clean that profile as well, run the list's names for its user by hand (both lines below were run on
+  that Chromecast). The recovery record, `restore.sh` and `check.py` do not see it, so undo it the same way:
+  ```sh
+  tools/tv.py 'pm disable-user --user 10 com.google.android.videos'
+  tools/tv.py 'pm enable --user 10 com.google.android.videos'          # undo
+  ```
 - **The Input key and CEC die after the hidden factory menu is opened**, seen on a Haier/CVTE set
   (Durabrand `DURAT32ISDB`, `dupont`, Android TV 11 build `RTM6.230109.232`,
   [#470](https://github.com/Gathin23/cleanyourtv/issues/470)). `com.cvte.tv.hkcfac` is the
@@ -310,7 +333,8 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   `Remove-Item Env:HANDLERS_ALLOW` after those two, or a later `check.py --fix` on your main list
   skips the guard too. To turn the app back on, use
   `tools/tv.py 'pm enable --user 0 <package>'`. `tools/restore.sh` with that list turns it back on
-  as well, but it also turns the stock launcher back on and makes it Home, as it does for any list.
+  as well, and leaves Home on this project's launcher: it turns the stock launcher back on and makes
+  it Home only if the stock launcher was on when the list was applied (#1714).
   Report another one rather than reading it as a firmware quirk: the wrong-handler case needs
   a source change, not a setting.
 - **`adb exec-out screencap -p` gives a broken PNG** on some MediaTek sets (Xiaomi, and Amazon's
@@ -486,7 +510,9 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   Confirmed on this set: with `HomeKeyService` bound, Volume Down held for 3 s gave one step in
   `dumpsys audio`; unbound, a 1.07 s hold gave 14 repeats 50 ms apart. Single presses step once either
   way, also through HDMI ARC to a home cinema system. Choose between a firm Home press and a held volume
-  ramp; this set cannot have both.
+  ramp; this set cannot have both. A 50PUS7354 on the same board and firmware does the same with its original
+  Philips remote, so a slow remote is not needed: firm presses sent `ALL_APPS` to FallbackHome there
+  too, and `home_long_press_home` fixed it.
 - **The TV drops off Wi-Fi for good the moment setupwraith is disabled**, seen on Google TV 14 (Sony
   BRAVIA 9 II, Philips R8G, Skyworth SWTV-24NA-4K NF, Xiaomi TV Box S 3rd gen MiTV-AFMU0) and on a TCL
   G07 on Google TV 11 (build AR17; on AR20 the network belonged to `android.uid.system`). A Wi-Fi
@@ -734,6 +760,16 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   package that also claims HOME (PatchWall on Xiaomi) makes Android drop the default. The install
   script now picks the known stock launcher among the candidates by itself; otherwise choose one on
   the TV or pass `STOCK_LAUNCHER=<package>`.
+- **`tools/restore.sh` leaves the packages an earlier batch disabled off, after the TV changed its
+  address mid-cleanup.** The recovery record is one file per list and address
+  (`~/.cleanyourtv/recovery-<address>-<list hash>.json`), so a new DHCP lease - a router restart, or
+  the Wi-Fi forget and re-join the setupwraith step asks for itself - makes the next
+  `tools/disable.sh` run find no record and write a fresh one from a TV that is already partly
+  cleaned: every package the earlier batches disabled is in it as "already disabled, left alone by
+  undo", and undo at the new address leaves them off. `tools/disable.sh` now says so on stderr, names
+  the record under the old address and the packages the two disagree about. Run `tools/restore.sh` at
+  the old address first, or move that record to the new address's name once you are sure it is this
+  set and not a second one cleaned with the same list ([#2139](https://github.com/Gathin23/cleanyourtv/issues/2139)).
 - **Stremio fails every stream with `ConnectException: Failed to connect to /127.0.0.1:11470`**,
   and only Force stop brings it back until the next reboot. This is not the debloat. It is a Stremio
   regression in 1.11 ([stremio-bugs#2866](https://github.com/Stremio/stremio-bugs/issues/2866)):
@@ -920,6 +956,23 @@ running back on the list the next time it starts; a helper turned off in Setting
   like `KEYCODE_BUTTON_4` (191) may be shared with other buttons on some remotes/key layouts, so mapping by keycode
   can unintentionally hijack other buttons.
   `scan:` checks match first and target only that specific physical button. See [the Mi Box S note](devices/xiaomi-mi-box-s.md).
+- **The Settings button opens Android TV Settings, not the TV's own menu** (Sony BRAVIA VU3, Google TV 14,
+  `BRAVIA_VU3`; the report records no build, [#2131](https://github.com/Gathin23/cleanyourtv/issues/2131)):
+  the Quick Settings ribbon that button used to open (Picture mode, Picture settings, Brightness) is Sony's
+  own app, and the helper takes `KEYCODE_SETTINGS` before any app is asked, so the press opens the standard
+  settings action - on this set `com.android.tv.settings/.MainSettings`, or the launcher's own panel with
+  `settings_key_panel`. With the helper off the press arrives and nothing opens: `WindowManager` logs
+  `mShortPressOnSettingsBehavior=SHORT_PRESS_SETTINGS_NOTHING`. The ribbon is still installed and opens when
+  it is asked directly: `tools/tv.py 'am start -n com.sony.dtv.smartui/.settings.SmartSettingsActivity'`.
+  `settings_key_keycodes` and `settings_key_scancodes` do not bring the ribbon back on their own: both end in
+  `Settings.ACTION_SETTINGS`, and `settings_fallback_components` is read only when that action resolves to
+  nothing, which it does not on this set. If the remote reports a scancode for that button, an `app_keys`
+  entry should put it back (read from the launcher's code, not yet tried on a set), because a `scan:` entry is
+  answered before the settings branch in
+  `HomeKeyService.onKeyEvent`: `"scan:<scancode>:com.sony.dtv.smartui/.settings.SmartSettingsActivity"` in
+  `config.xml`, or in a theme's `app_keys` (find `<scancode>` with `getevent -lt` while pressing the button,
+  as the `scan:` bullet above does for a Sony remote). A keycode entry cannot: `"176:..."` is
+  `KEYCODE_SETTINGS`, which the helper takes itself before it looks at any app key.
 - **The list still names the helper but `accessibility_enabled` is `0`**, so nothing is bound and the
   button does nothing (not the force stop below): on a TCL C6K Pro (`G08`, Android 14,
   [#1047](https://github.com/Gathin23/cleanyourtv/issues/1047)) a reboot left

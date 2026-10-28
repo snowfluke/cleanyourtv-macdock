@@ -63,7 +63,9 @@
 
     <!-- Tiles that open a screen of the app instead of its start screen: "package=action", sent to that package.
          A tile whose action no longer resolves opens the app normally. MagentaTV's program guide:
-         com.telekom.onetv.tv.pl=com.telekom.onetv.tv.pl.action.PROGRAM_GUIDE. -->
+         com.telekom.onetv.tv.pl=com.telekom.onetv.tv.pl.action.PROGRAM_GUIDE. "package=input:<input id>" makes
+         the tile switch to that TV input instead (ids from dumpsys tv_input), e.g. a Live TV tile straight to
+         HDMI 1: com.mediatek.wwtv.tvcenter=input:com.mediatek.tvinput/.hdmi.HDMIInputService/HW5. -->
     <string-array name="launch_actions">
     </string-array>
 
@@ -184,8 +186,9 @@
          for HDMI 3 on a TCL Smart TV Pro; the ids are in `tools/tv.py 'dumpsys tv_input'` (hdmi_port=N under
          TvInputHardwareInfo). An action word in place of a package runs that action instead: back, home, recents,
          mute (toggles the sound, with the TV's volume bar), sleep (standby, Android 9 and later), screensaver (the
-         one chosen in the TV's settings, or the launcher's clock), settings or wifi; e.g. KEYCODE_PROG_YELLOW:mute
-         and hold:KEYCODE_PROG_YELLOW:sleep. "package/.Activity" opens that activity instead of the app's launcher
+         one chosen in the TV's settings, or the launcher's clock), settings, wifi or ignore (swallows the button: it
+         does nothing, for a shortcut pressed by accident; find its scancode with `tools/tv.py 'getevent -t'`);
+         e.g. KEYCODE_PROG_YELLOW:mute, scan:586:ignore and hold:KEYCODE_PROG_YELLOW:sleep. "package/.Activity" opens that activity instead of the app's launcher
          entry, e.g. hold:191:io.github.maxhayim.brightness/.QuickActivity for an add-on's quick bar. Prefix an
          entry with "hold:" for the same button's long press:
          "hold:KEYCODE_BUTTON_8:org.xbmc.kodi" opens Kodi when held for half a second, while the unprefixed entry
@@ -389,6 +392,15 @@
          (many China-market TVs, e.g. Coocaa 8R145), a fresh Home with app_library on would otherwise be
          nearly empty. Empty (off) by default, so existing setups change nothing. -->
     <string-array name="library_apps" translatable="false">
+    </string-array>
+
+    <!-- Packages the App library catalogue never offers, even with app_library on (config.xml
+         library_excluded_apps, or a theme's config.json). Different from hidden_apps, which only keeps a
+         package off Home while still listing it here: some boards hide a package because opening it is
+         unsafe (a factory-test menu that can misconfigure the TV), and the catalogue otherwise ignores
+         hidden_apps and offers it as "Add to Home" anyway. Empty (off) by default, so existing setups
+         change nothing. -->
+    <string-array name="library_excluded_apps" translatable="false">
     </string-array>
 
     <!-- Module cards: an app that declares a card (docs/specs/card.md) can stand in for its tile with its own

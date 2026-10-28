@@ -288,11 +288,14 @@ final class RemoteKeys {
         }
     }
 
-    /** Whether a target is an action word rather than an app or an input. A package name always has a dot. */
+    /**
+     * Whether a target is an action word rather than an app or an input. A package name always has a dot.
+     * "ignore" does nothing on purpose: the button is swallowed, for a remote shortcut that is pressed by accident.
+     */
     static boolean isAction(String target) {
         switch (target) {
             case "back": case "home": case "recents": case "mute": case "sleep":
-            case "screensaver": case "settings": case "wifi": case "clock":
+            case "screensaver": case "settings": case "wifi": case "clock": case "ignore":
                 return true;
             default:
                 return false;
@@ -333,7 +336,7 @@ final class RemoteKeys {
                 if (ctx instanceof AccessibilityService) TimePill.show((AccessibilityService) ctx);
                 break;
             default:
-                break;   // "sleep" below Android 9: consumed, nothing to do
+                break;   // "ignore", or "sleep" below Android 9: consumed, nothing to do
         }
         return true;
     }
