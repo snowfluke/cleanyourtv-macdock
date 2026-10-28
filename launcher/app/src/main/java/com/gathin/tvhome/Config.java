@@ -617,7 +617,7 @@ final class Config {
             statsRings = bool(json, "stats_rings", statsRings);
             weatherNow = bool(json, "weather_now", weatherNow);
             macHome = bool(json, "mac_home", macHome);
-            musicStyle = json.optString("music_style", musicStyle);
+            musicStyle = string(json, "music_style", musicStyle);
             nowPlaying = bool(json, "now_playing", nowPlaying);
             accentFromWallpaper = bool(json, "accent_from_wallpaper", accentFromWallpaper);
             statsRingColor = color(json, "stats_ring_color", statsRingColor);
