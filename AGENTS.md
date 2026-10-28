@@ -9,6 +9,7 @@ this file repeats their rules in the form an agent needs, and links to them for 
 | You were asked to | Do this |
 |---|---|
 | Clean up a TV: debloat it, install the launcher, push a theme | Read [PROMPT.md](PROMPT.md) and follow it exactly, on the real TV. Use the tools in `tools/` and the launcher in `launcher/` rather than writing new ones; the only file you need to change is `launcher/app/src/main/res/values/config.xml`, or a theme's `config.json`, for this TV. Do not edit the repo's docs, tests or other code, and do not open issues or pull requests unless the person asks you to. |
+| Give a TV the macOS-style Home of this fork (`mac_home`, the macdock theme) | Debloat it with PROMPT.md first. Then follow [MACDOCK.md](MACDOCK.md), including its "For coding agents" rules and its "Check it" step. Build the launcher unchanged. |
 | Change this repo: a TV list, a fix, a translation, a theme, docs | Skip the next section and read on from [Repo map](#repo-map). |
 
 ### Cleaning a TV: the rules that are not negotiable

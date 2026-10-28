@@ -57,6 +57,36 @@ You need a computer on the same Wi-Fi as the TV. Read [PROMPT.md](PROMPT.md) and
    **Show what is playing**. Allow **Visualizer hears the sound** if you want the visualizer to follow the
    sound. It reads only the speaker output, never the microphone. Without it, the visualizer animates.
 
+## Check it
+
+Take a screenshot of Home:
+
+```bash
+TV_HOST=<tv ip> tools/tv.py --screenshot shots/home.png HOME
+```
+
+Compare it with [themes/macdock/screenshot.jpg](themes/macdock/screenshot.jpg).
+
+| Part | Correct | Wrong |
+|---|---|---|
+| Header, left | One small line with the day, date and time, for example "Wed 28 Oct 12:49" | A greeting, a large clock, a divider and the date |
+| Header, centre | RAM and disk rings, then the weather | Rings next to the date |
+| Header, right | Three round buttons: Inputs, Wi-Fi, Settings | |
+| Bottom | The dock, a divider, a Music button and an Apps button | |
+
+A correct dock with a wrong header means the launcher on the TV has local changes. Run `git status` and
+`git diff --stat launcher/`. Undo the changes in `launcher/`, then build and install again (step 1).
+
+## For coding agents
+
+- Do not change the launcher source to get this look. `"mac_home": true` in the theme turns on every part.
+- For a person's own look, change only the theme folder: `config.json` and `wallpaper.jpg`.
+- The macdock header has no greeting and no large clock. With `mac_home` on, these keys do nothing:
+  `show_greeting`, `greeting_name`, `date_below_clock`, `shamsi_date`, `lunar_date`, and the greeting
+  of a `festival`. Do not patch them back in. If the person asks for a greeting, tell them this look has
+  none, and offer a theme without `mac_home`.
+- Do the check above before you report that the theme is on the TV.
+
 ## Change it
 
 | To change | Do this |
